@@ -178,7 +178,216 @@ function renderFinal() {
         <strong class="summary-value">${state.food}</strong>
       </div>
     </div>
+    <div class="final-actions">
+      <button class="comic-button save-card-button" id="saveCardButton" type="button">
+        <span aria-hidden="true">⇩</span>
+        <span>保存约会卡片</span>
+      </button>
+      <p class="save-status" id="saveStatus" role="status" aria-live="polite"></p>
+    </div>
   `;
+
+  card.querySelector('#saveCardButton').addEventListener('click', saveInvitationCard);
+}
+
+function saveInvitationCard() {
+  const button = card.querySelector('#saveCardButton');
+  const status = card.querySelector('#saveStatus');
+  const originalContent = button.innerHTML;
+  button.disabled = true;
+  button.innerHTML = '<span aria-hidden="true">…</span><span>正在生成</span>';
+  status.textContent = '';
+
+  try {
+    const canvas = buildInvitationCanvas();
+    const blob = dataUrlToBlob(canvas.toDataURL('image/png'));
+    const fileName = `约会卡片-${state.date}.png`;
+    const file = new File([blob], fileName, { type: 'image/png' });
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const canShareFile =
+      isMobile &&
+      typeof navigator.share === 'function' &&
+      typeof navigator.canShare === 'function' &&
+      navigator.canShare({ files: [file] });
+
+    if (canShareFile) {
+      navigator
+        .share({ files: [file], title: '约会卡片' })
+        .then(() => {
+          status.textContent = '约会卡片已准备好';
+        })
+        .catch((error) => {
+          status.textContent = error.name === 'AbortError' ? '已取消保存' : '保存失败，请重试';
+        });
+    } else {
+      downloadBlob(blob, fileName);
+      status.textContent = '图片已保存';
+    }
+  } catch (error) {
+    console.error('生成约会卡片失败', error);
+    status.textContent = '保存失败，请重试';
+  } finally {
+    button.disabled = false;
+    button.innerHTML = originalContent;
+  }
+}
+
+function buildInvitationCanvas() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 1080;
+  canvas.height = 1440;
+  const context = canvas.getContext('2d');
+  const ink = '#17171d';
+  const paper = '#fffefd';
+  const pink = '#e94eb6';
+  const softPink = '#f9cce9';
+  const muted = '#747078';
+  const avatar = card.querySelector('.avatar');
+  const formattedDate = formatDate(state.date);
+
+  context.fillStyle = '#fff8fc';
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.fillStyle = pink;
+  context.fillRect(0, 0, canvas.width, 18);
+  context.fillRect(0, canvas.height - 18, canvas.width, 18);
+
+  drawPosterDecoration(context, '🌸', 104, 148, 48, -0.15);
+  drawPosterDecoration(context, '🌺', 922, 208, 42, 0.14);
+  drawPosterDecoration(context, '♥', 126, 1268, 34, -0.1, pink);
+  drawPosterDecoration(context, '♥', 930, 1225, 30, 0.12, pink);
+
+  context.fillStyle = ink;
+  roundedRect(context, 78, 86, 924, 1272, 62);
+  context.fill();
+
+  context.fillStyle = paper;
+  context.strokeStyle = ink;
+  context.lineWidth = 8;
+  roundedRect(context, 58, 60, 924, 1272, 62);
+  context.fill();
+  context.stroke();
+
+  context.strokeStyle = 'rgba(23, 23, 29, 0.1)';
+  context.lineWidth = 2;
+  roundedRect(context, 82, 84, 876, 1224, 44);
+  context.stroke();
+
+  context.fillStyle = muted;
+  context.font = '800 24px "PingFang SC", "Microsoft YaHei", sans-serif';
+  context.textAlign = 'center';
+  context.fillText('约 会 确 认', 540, 140);
+
+  drawAvatar(context, avatar, 423, 174, 234, 52);
+
+  context.fillStyle = ink;
+  context.font = '900 62px "PingFang SC", "Microsoft YaHei", sans-serif';
+  context.textAlign = 'center';
+  context.fillText('真开心你没有拒绝～', 540, 495);
+  context.fillText('我会准时来接你！', 540, 580);
+
+  context.fillStyle = muted;
+  context.font = '700 29px "PingFang SC", "Microsoft YaHei", sans-serif';
+  context.fillText(`${formattedDate} ${state.time}，我们去吃${state.food}。`, 540, 658);
+  context.fillText('带好胃口，我带好路线。', 540, 705);
+
+  context.fillStyle = ink;
+  roundedRect(context, 142, 792, 816, 330, 38);
+  context.fill();
+  context.fillStyle = paper;
+  context.strokeStyle = ink;
+  context.lineWidth = 6;
+  roundedRect(context, 126, 772, 816, 330, 38);
+  context.fill();
+  context.stroke();
+
+  const details = [
+    { label: '日期', value: formattedDate },
+    { label: '时间', value: state.time },
+    { label: '餐食', value: state.food },
+  ];
+
+  details.forEach((detail, index) => {
+    const x = 155 + index * 255;
+    context.fillStyle = index === 2 ? softPink : paper;
+    context.strokeStyle = index === 2 ? '#ce2f96' : ink;
+    context.lineWidth = 5;
+    roundedRect(context, x, 826, 226, 214, 28);
+    context.fill();
+    context.stroke();
+
+    context.fillStyle = pink;
+    context.font = '900 23px "PingFang SC", "Microsoft YaHei", sans-serif';
+    context.textAlign = 'left';
+    context.fillText(detail.label, x + 26, 880);
+
+    context.fillStyle = ink;
+    context.font = '900 38px "PingFang SC", "Microsoft YaHei", sans-serif';
+    context.textAlign = 'center';
+    context.fillText(detail.value, x + 113, 966);
+  });
+
+  context.fillStyle = pink;
+  context.font = '900 34px "PingFang SC", "Microsoft YaHei", sans-serif';
+  context.textAlign = 'center';
+  context.fillText('♥  期待这场约会  ♥', 540, 1215);
+
+  context.fillStyle = muted;
+  context.font = '700 23px "PingFang SC", "Microsoft YaHei", sans-serif';
+  context.fillText('这次不只是说说而已', 540, 1268);
+
+  return canvas;
+}
+
+function drawAvatar(context, image, x, y, size, radius) {
+  context.save();
+  roundedRect(context, x, y, size, size, radius);
+  context.clip();
+  context.drawImage(image, x, y, size, size);
+  context.restore();
+}
+
+function drawPosterDecoration(context, symbol, x, y, size, rotation, color) {
+  context.save();
+  context.translate(x, y);
+  context.rotate(rotation);
+  context.fillStyle = color || '#17171d';
+  context.font = `${size}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
+  context.textAlign = 'center';
+  context.fillText(symbol, 0, 0);
+  context.restore();
+}
+
+function roundedRect(context, x, y, width, height, radius) {
+  const safeRadius = Math.min(radius, width / 2, height / 2);
+  context.beginPath();
+  context.moveTo(x + safeRadius, y);
+  context.arcTo(x + width, y, x + width, y + height, safeRadius);
+  context.arcTo(x + width, y + height, x, y + height, safeRadius);
+  context.arcTo(x, y + height, x, y, safeRadius);
+  context.arcTo(x, y, x + width, y, safeRadius);
+  context.closePath();
+}
+
+function dataUrlToBlob(dataUrl) {
+  const [metadata, encodedData] = dataUrl.split(',');
+  const mimeType = metadata.match(/data:(.*?);base64/)[1];
+  const binary = atob(encodedData);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return new Blob([bytes], { type: mimeType });
+}
+
+function downloadBlob(blob, fileName) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 function formatDate(dateValue) {
