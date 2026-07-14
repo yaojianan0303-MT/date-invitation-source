@@ -188,11 +188,43 @@ function renderFinal() {
   `;
 
   card.querySelector('#saveCardButton').addEventListener('click', saveInvitationCard);
+  prepareSaveButton();
+}
+
+function prepareSaveButton() {
+  const button = card.querySelector('#saveCardButton');
+  const status = card.querySelector('#saveStatus');
+  const avatar = card.querySelector('.avatar');
+  const enableSaving = () => {
+    button.disabled = false;
+    status.textContent = '';
+  };
+
+  if (avatar.complete && avatar.naturalWidth > 0) {
+    enableSaving();
+    return;
+  }
+
+  button.disabled = true;
+  status.textContent = '头像加载中…';
+  avatar.addEventListener('load', enableSaving, { once: true });
+  avatar.addEventListener(
+    'error',
+    () => {
+      status.textContent = '头像加载失败，请刷新重试';
+    },
+    { once: true },
+  );
 }
 
 function saveInvitationCard() {
   const button = card.querySelector('#saveCardButton');
   const status = card.querySelector('#saveStatus');
+  const avatar = card.querySelector('.avatar');
+  if (!avatar.complete || avatar.naturalWidth === 0) {
+    status.textContent = '头像加载中，请稍后再试';
+    return;
+  }
   const originalContent = button.innerHTML;
   button.disabled = true;
   button.innerHTML = '<span aria-hidden="true">…</span><span>正在生成</span>';
